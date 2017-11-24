@@ -43,8 +43,9 @@ func newPool(server string) *redis.Pool {
 
 func (r *redisClient) write(value []byte) error {
 	conn := r.pool.Get()
+	fmt.Printf("Connection %v from Pool\n", conn)
 	defer conn.Close()
-
+	fmt.Printf("RPUSH %s %s\n", r.key, value)
 	reply, err := conn.Do("RPUSH", r.key, value)
 	if err != nil {
 		v := string(value)
@@ -74,8 +75,9 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	}
 	redisHost := fmt.Sprintf("%s:%s", host, port)
 
+	redisPool := newPool(redisHost)
 	rc = &redisClient{
-		pool: newPool(redisHost),
+		pool: redisPool,
 		key:  key,
 	}
 
@@ -114,7 +116,6 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			fmt.Printf("error creating message for REDIS: %s", err)
 			return output.FLB_RETRY
 		}
-		fmt.Printf("%s\n", js)
 		err = rc.write(js)
 		if err != nil {
 			fmt.Printf("error %v", err)
@@ -132,6 +133,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 //export FLBPluginExit
 func FLBPluginExit() int {
+	rc.pool.Close()
 	return output.FLB_OK
 }
 
