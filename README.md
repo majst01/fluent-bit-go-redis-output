@@ -25,8 +25,8 @@
 ## Usage
 
 ```bash
-docker run -it --rm -v $PWD:/tmp -e REDIS_KEY=eskey -e REDIS_HOST=redis -e REDIS_PORT=6379 fluent/fluent-bit 
-/fluent-bit/bin/fluent-bit -e /tmp/out_redis.so -i cpu -o redis
+docker build -tr fluent-bit-go-redis-output
+docker run -it --rm -e REDIS_HOST=172.0.0.3 -e REDIS_PORT=6379 -e REDIS_KEY=eskey fluent-bit-go-redis-output
 ```
 
 ## Redis server usage and availability
