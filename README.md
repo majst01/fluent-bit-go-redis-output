@@ -1,5 +1,11 @@
 # fluent-bit redis output plugin
 
+## Usage
+
+```bash
+docker build -tr fluent-bit-go-redis-output
+docker run -it --rm -e REDIS_HOST=172.0.0.3 -e REDIS_PORT=6379 -e REDIS_KEY=eskey fluent-bit-go-redis-output
+```
 
 ## Useful links
 
@@ -21,13 +27,6 @@
 ### Logstash Redis Output
 
 - [logstash-redis-docu](https://github.com/logstash-plugins/logstash-output-redis/blob/master/docs/index.asciidoc)
-
-## Usage
-
-```bash
-docker build -tr fluent-bit-go-redis-output
-docker run -it --rm -e REDIS_HOST=172.0.0.3 -e REDIS_PORT=6379 -e REDIS_KEY=eskey fluent-bit-go-redis-output
-```
 
 ## Redis server usage and availability
 
