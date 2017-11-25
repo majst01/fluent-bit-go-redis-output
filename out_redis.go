@@ -91,6 +91,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	var ret int
 	var ts interface{}
 	var record map[interface{}]interface{}
+	var m map[string]interface{}
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
@@ -105,7 +106,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 		// Print record keys and values
 		timestamp := ts.(output.FLBTime)
-		m := make(map[string]interface{})
+		m = make(map[string]interface{})
 		m["@timestamp"] = timestamp.String()
 		m["@tag"] = C.GoString(tag)
 		for k, v := range record {
