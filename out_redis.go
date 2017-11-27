@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,22 +27,50 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 //export FLBPluginInit
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
-	// Example to retrieve an optional configuration parameter
-	key := os.Getenv("REDIS_KEY")
-	host := os.Getenv("REDIS_HOST")
-	port := os.Getenv("REDIS_PORT")
-	password := os.Getenv("REDIS_PASSWORD")
-	db, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
-	usetls, _ := strconv.ParseBool(os.Getenv("REDIS_USETLS"))
-	tlsskipverify, _ := strconv.ParseBool(os.Getenv("REDIS_TLSSKIP_VERIFY"))
+	// argument parsing from environment variables
+	// REDIS_HOSTS must be in the form "hosta:porta hostb:portb"
+	hosts := os.Getenv("REDIS_HOSTS")
+	if hosts == "" {
+		hosts = "127.0.0.1:6379"
+	}
+	hostAndPorts := strings.Split(hosts, " ")
 
-	redisPool := newPool(host, port, db, password, usetls, tlsskipverify)
-	rc = &redisClient{
-		pool: redisPool,
-		key:  key,
+	password := os.Getenv("REDIS_PASSWORD")
+	key := os.Getenv("REDIS_KEY")
+	if key == "" {
+		key = "logstash"
 	}
 
-	fmt.Printf("[flb-go] redis connection to: %s:%s db: %d with key:%s\n", host, port, db, key)
+	dbValue := os.Getenv("REDIS_DB")
+	db, err := strconv.Atoi(dbValue)
+	if dbValue != "" && err != nil {
+		fmt.Printf("db must be a integer: %v\n", err)
+		os.Exit(1)
+	}
+	usetls, err := strconv.ParseBool(os.Getenv("REDIS_USETLS"))
+	if err != nil {
+		fmt.Printf("usetls must be a bool: %v\n", err)
+		os.Exit(1)
+	}
+	tlsskipverify, err := strconv.ParseBool(os.Getenv("REDIS_TLSSKIP_VERIFY"))
+	if err != nil {
+		fmt.Printf("usetls must be a bool: %v\n", err)
+		os.Exit(1)
+	}
+
+	// create a pool of redis connection pools
+	redisPools, err := newPools(hostAndPorts, db, password, usetls, tlsskipverify)
+	if err != nil {
+		fmt.Printf("cannot create a pool of redis connections: %v\n", err)
+		os.Exit(1)
+	}
+
+	rc = &redisClient{
+		pools: redisPools,
+		key:   key,
+	}
+
+	fmt.Printf("[out-redis] redis connection to: %s db: %d with key:%s\n", hostAndPorts, db, key)
 	return output.FLB_OK
 }
 
@@ -104,7 +133,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 //export FLBPluginExit
 func FLBPluginExit() int {
-	rc.pool.Close()
+	rc.pools.closeAll()
 	return output.FLB_OK
 }
 
