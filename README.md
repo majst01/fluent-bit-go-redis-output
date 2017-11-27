@@ -1,24 +1,37 @@
 # fluent-bit redis output plugin
 
+This plugin is used to have redis output from fluent-bit. You can use fluent-bit redis instead of logstash in a configuration
+where you have a redis and optional stunnel in front of your elasticsearch infrastructure. 
+
+The configuration typically looks like:
+
+```graphviz
+fluent-bit --> stunnel --> redis <-- logstash --> elasticsearch
+```
+
+If you have multiple elastic search servers, each covered with a redis cache in front it might look like this:
+
+```graphviz
+           /-> stunnel --> redis <-- logstash --> elasticsearch 
+           |
+fluent-bit --> stunnel --> redis <-- logstash --> elasticsearch
+           |
+           \-> stunnel --> redis <-- logstash --> elasticsearch
+```
+
 ## Usage
 
 ```bash
-docker build -tr fluent-bit-go-redis-output
-docker run -it --rm -e REDIS_HOST=172.0.0.3 -e REDIS_PORT=6379 -e REDIS_KEY=eskey fluent-bit-go-redis-output
+docker build --tag --no-cache fluent-bit-go-redis-output .
+docker run -it --rm \
+        --env REDIS_HOSTS="172.17.0.1:6380 172.17.0.1:6381 172.17.0.1:6382 172.17.0.1:6383" \
+        --env REDIS_KEY=logstash \
+        --env REDIS_USETLS=true \
+        --env REDIS_TLSSKIP_VERIFY=true \
+    fluent-bit-go-redis-output
 ```
 
 ## Useful links
-
-### Redis Libraries
-
-- [go-redis](https://github.com/go-redis/redis)
-- [redigo](https://github.com/garyburd/redigo)
-
-
-### TLS Socket
-
-- [stunnel](https://github.com/liudanking/stunnel)
-- [tlsproxy](https://github.com/getlantern/tlsproxy/blob/master/tlsproxy.go)
 
 ### Redis format
 
@@ -28,7 +41,7 @@ docker run -it --rm -e REDIS_HOST=172.0.0.3 -e REDIS_PORT=6379 -e REDIS_KEY=eske
 
 - [logstash-redis-docu](https://github.com/logstash-plugins/logstash-output-redis/blob/master/docs/index.asciidoc)
 
-## Redis server usage and availability
+## TODO strategies for redis connection error handling
 
 1. crash on connection errors
 
@@ -37,8 +50,3 @@ Given a list of 4 Redis databases, we pick on start a random one, if during oper
 1. rely on FLB_RETRY
 
 With a list of redis databases we can create a list of pools, one pool per database and instead of doing a pool.Get(), call list.Get() with selects the next random redis database. If a failure occurs return FLB_RETRY and the library will retry.
-
-## TODO
-
-- HA, create a list of redis.Pool(s), use pools.Get() which gives the next random Pool, instead of pool.Get()
-
