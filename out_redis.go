@@ -73,7 +73,14 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		m["@timestamp"] = t.UTC().Format(time.RFC3339Nano)
 		m["@tag"] = C.GoString(tag)
 		for k, v := range record {
-			m[k.(string)] = v
+			switch t := v.(type) {
+			case []byte:
+				// prevent encoding to base64
+				m[k.(string)] = string(t)
+			default:
+				m[k.(string)] = v
+			}
+
 		}
 		js, err := json.Marshal(m)
 		if err != nil {
