@@ -6,57 +6,16 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
-	"github.com/garyburd/redigo/redis"
 )
 import (
 	"encoding/json"
 	"os"
-	"time"
+	"strconv"
 )
 
 var (
 	rc *redisClient
 )
-
-type redisClient struct {
-	key  string
-	pool *redis.Pool
-}
-
-func newPool(server string) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
-			if err != nil {
-				return nil, err
-			}
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-	}
-}
-
-func (r *redisClient) write(value []byte) error {
-	conn := r.pool.Get()
-	fmt.Printf("Connection %v from Pool\n", conn)
-	defer conn.Close()
-	fmt.Printf("RPUSH %s %s\n", r.key, value)
-	reply, err := conn.Do("RPUSH", r.key, value)
-	if err != nil {
-		v := string(value)
-		if len(v) > 15 {
-			v = v[0:12] + "..."
-		}
-		return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
-	}
-	fmt.Printf("wrote: %v", reply)
-	return err
-}
 
 //export FLBPluginRegister
 func FLBPluginRegister(ctx unsafe.Pointer) int {
@@ -70,18 +29,29 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	key := os.Getenv("REDIS_KEY")
 	host := os.Getenv("REDIS_HOST")
 	port := os.Getenv("REDIS_PORT")
+	password := os.Getenv("REDIS_PASSWORD")
+	dbConfig := os.Getenv("REDIS_DB")
+
+	var db int
+	var err error
+	if dbConfig == "" {
+		db = 0
+	} else {
+		db, err = strconv.Atoi(dbConfig)
+		if err != nil {
+			db = 0
+		}
+	}
 	if port == "" {
 		port = "6379"
 	}
-	redisHost := fmt.Sprintf("%s:%s", host, port)
-
-	redisPool := newPool(redisHost)
+	redisPool := newPool(host, port, db, password, false, false, nil)
 	rc = &redisClient{
 		pool: redisPool,
 		key:  key,
 	}
 
-	fmt.Printf("[flb-go] redis connection to: %s with key:%s\n", redisHost, key)
+	fmt.Printf("[flb-go] redis connection to: %s:%s db: %d with key:%s\n", host, port, db, key)
 	return output.FLB_OK
 }
 
