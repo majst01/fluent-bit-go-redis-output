@@ -1,2 +1,4 @@
 vendor
 Gopkg.lock
+out_redis.h
+out_redis.so

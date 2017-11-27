@@ -1,10 +1,10 @@
 FROM golang:1.9 AS builder
 
-COPY Makefile out_redis.go Gopkg.toml /go/src/github.com/majst01/fluent-bit-go-redis-output/
+COPY Makefile redis.go out_redis.go Gopkg.toml /go/src/github.com/majst01/fluent-bit-go-redis-output/
 
 RUN cd /go/src/github.com/majst01/fluent-bit-go-redis-output/ \
  && go get -u github.com/golang/dep/cmd/dep \
- && make
+ && make dep all
 
 FROM fluent/fluent-bit
 

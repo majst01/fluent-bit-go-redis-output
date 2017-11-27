@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
@@ -30,22 +31,11 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	host := os.Getenv("REDIS_HOST")
 	port := os.Getenv("REDIS_PORT")
 	password := os.Getenv("REDIS_PASSWORD")
-	dbConfig := os.Getenv("REDIS_DB")
+	db, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
+	usetls, _ := strconv.ParseBool(os.Getenv("REDIS_USETLS"))
+	tlsskipverify, _ := strconv.ParseBool(os.Getenv("REDIS_TLSSKIP_VERIFY"))
 
-	var db int
-	var err error
-	if dbConfig == "" {
-		db = 0
-	} else {
-		db, err = strconv.Atoi(dbConfig)
-		if err != nil {
-			db = 0
-		}
-	}
-	if port == "" {
-		port = "6379"
-	}
-	redisPool := newPool(host, port, db, password, false, false, nil)
+	redisPool := newPool(host, port, db, password, usetls, tlsskipverify)
 	rc = &redisClient{
 		pool: redisPool,
 		key:  key,
@@ -75,9 +65,12 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		}
 
 		// Print record keys and values
+		// convert timestamp to RFC3339Nano which is logstash format
 		timestamp := ts.(output.FLBTime)
+		const timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
+		t, _ := time.Parse(timeFormat, timestamp.String())
 		m = make(map[string]interface{})
-		m["@timestamp"] = timestamp.String()
+		m["@timestamp"] = t.UTC().Format(time.RFC3339Nano)
 		m["@tag"] = C.GoString(tag)
 		for k, v := range record {
 			m[k.(string)] = v

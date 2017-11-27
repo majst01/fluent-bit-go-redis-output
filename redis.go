@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -14,21 +12,19 @@ type redisClient struct {
 	pool *redis.Pool
 }
 
-func newPool(host string, port string, db int, password string, usetls, tlsskipverify bool, certificate *x509.Certificate) *redis.Pool {
-	var clientTLSConfig tls.Config
+func newPool(host string, port string, db int, password string, usetls, tlsskipverify bool) *redis.Pool {
 	var c redis.Conn
 	var err error
-
+	if port == "" {
+		port = "6379"
+	}
 	server := fmt.Sprintf("%s:%s", host, port)
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
 			if usetls {
-				clientTLSConfig.RootCAs = x509.NewCertPool()
-				clientTLSConfig.RootCAs.AddCert(certificate)
 				c, err = redis.Dial("tcp", server, redis.DialDatabase(db),
-					redis.DialTLSConfig(&clientTLSConfig),
 					redis.DialUseTLS(usetls),
 					redis.DialTLSSkipVerify(tlsskipverify),
 				)

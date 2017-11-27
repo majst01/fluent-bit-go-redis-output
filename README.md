@@ -40,7 +40,5 @@ With a list of redis databases we can create a list of pools, one pool per datab
 
 ## TODO
 
-- TLS redis.DialUseTLS
-- string concat instead of json.Marshal
-- HA
+- HA, create a list of redis.Pool(s), use pools.Get() which gives the next random Pool, instead of pool.Get()
 
