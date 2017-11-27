@@ -44,17 +44,17 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	dbValue := os.Getenv("REDIS_DB")
 	db, err := strconv.Atoi(dbValue)
 	if dbValue != "" && err != nil {
-		fmt.Printf("db must be a integer: %v\n", err)
+		fmt.Printf("REDIS_DB must be a integer: %v\n", err)
 		os.Exit(1)
 	}
 	usetls, err := strconv.ParseBool(os.Getenv("REDIS_USETLS"))
 	if err != nil {
-		fmt.Printf("usetls must be a bool: %v\n", err)
+		fmt.Printf("REDIS_USETLS must be a bool: %v\n", err)
 		os.Exit(1)
 	}
 	tlsskipverify, err := strconv.ParseBool(os.Getenv("REDIS_TLSSKIP_VERIFY"))
 	if err != nil {
-		fmt.Printf("usetls must be a bool: %v\n", err)
+		fmt.Printf("REDIS_TLSSKIP_VERIFY must be a bool: %v\n", err)
 		os.Exit(1)
 	}
 
