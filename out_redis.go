@@ -70,7 +70,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		key:   key,
 	}
 
-	fmt.Printf("[out-redis] redis connection to: %s db: %d with key:%s\n", hostAndPorts, db, key)
+	fmt.Printf("[out-redis] redis connection to: %s db: %d usetls:%t tlsskipverify:%t with key:%s\n", hostAndPorts, db, usetls, tlsskipverify, key)
 	return output.FLB_OK
 }
 
@@ -113,12 +113,12 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		}
 		js, err := json.Marshal(m)
 		if err != nil {
-			fmt.Printf("error creating message for REDIS: %s", err)
+			fmt.Printf("error creating message for REDIS: %s\n", err)
 			return output.FLB_RETRY
 		}
 		err = rc.write(js)
 		if err != nil {
-			fmt.Printf("error %v", err)
+			fmt.Printf("error %v\n", err)
 			return output.FLB_RETRY
 		}
 	}
