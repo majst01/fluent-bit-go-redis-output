@@ -19,11 +19,17 @@ fluent-bit --> stunnel --> redis <-- logstash --> elasticsearch
            \-> stunnel --> redis <-- logstash --> elasticsearch
 ```
 
-## Usage
+# Usage
+
+```bash
+docker run -it --rm -v /path/to/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf majst01/fluent-bit-go-redis-output
+```
+
+## Building
 
 ```bash
 docker build --no-cache --tag fluent-bit-go-redis-output .
-docker run -it --rm fluent-bit-go-redis-output
+docker run -it --rm -v /path/to/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf fluent-bit-go-redis-output
 ```
 
 ### Configuration Options
@@ -40,6 +46,8 @@ docker run -it --rm fluent-bit-go-redis-output
 
 Example:
 
+add this section to fluent-bit.conf
+
 ```properties
 [Output]
     Name redis
@@ -48,7 +56,7 @@ Example:
     TLSSkipVerify true
     # if port is ommited, 6379 is used
     Hosts 172.17.0.1 172.17.0.1:6380 172.17.0.1:6381 172.17.0.1:6382 172.17.0.1:6383
-#    Password
+    Password homer
     DB 0
     Key elastic-logstash
 ```
@@ -63,7 +71,9 @@ Example:
 
 - [logstash-redis-docu](https://github.com/logstash-plugins/logstash-output-redis/blob/master/docs/index.asciidoc)
 
-## TODO strategies for redis connection error handling
+## TODO
+
+### Strategies for redis connection error handling
 
 1. crash on connection errors
 
