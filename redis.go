@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,8 +15,85 @@ type redisClient struct {
 	pools *redisPools
 }
 
+type redisHost struct {
+	hostname string
+	port     int
+}
+type redisConfig struct {
+	hosts         []redisHost
+	db            int
+	password      string
+	usetls        bool
+	tlsskipverify bool
+	key           string
+}
 type redisPools struct {
 	pools []*redis.Pool
+}
+
+func (rc *redisConfig) String() string {
+	return fmt.Sprintf("hosts:%v db:%d usetls:%t tlsskipverify:%t key:%s", rc.hosts, rc.db, rc.usetls, rc.tlsskipverify, rc.key)
+}
+
+func getRedisConfig(hosts, password, db, usetls, tlsskipverify, key string) (*redisConfig, error) {
+	rc := &redisConfig{}
+	// defaults
+	if hosts == "" {
+		hosts = "127.0.0.1:6379"
+	}
+	if usetls == "" {
+		usetls = "False"
+	}
+	if tlsskipverify == "" {
+		tlsskipverify = "True"
+	}
+	if key == "" {
+		key = "logstash"
+	}
+
+	hostAndPorts := strings.Split(hosts, " ")
+	for _, hostAndPort := range hostAndPorts {
+		rh := redisHost{}
+		if strings.Contains(hostAndPort, ":") {
+			hostAndPortArray := strings.Split(hostAndPort, ":")
+			if len(hostAndPortArray) != 2 {
+				return nil, fmt.Errorf("hosts must be in the form host:port but is:%s", hostAndPort)
+			}
+
+			port, err := strconv.Atoi(hostAndPortArray[1])
+			if err != nil {
+				return nil, fmt.Errorf("port must be numeric:%v", err)
+			}
+			rh.hostname = hostAndPortArray[0]
+			rh.port = port
+		} else {
+			rh.hostname = hostAndPort
+			rh.port = 6379
+		}
+		rc.hosts = append(rc.hosts, rh)
+	}
+
+	dbValue, err := strconv.Atoi(db)
+	if db != "" && err != nil {
+		return nil, fmt.Errorf("db must be a integer: %v", err)
+	}
+	rc.db = dbValue
+
+	tls, err := strconv.ParseBool(usetls)
+	if err != nil {
+		return nil, fmt.Errorf("usetls must be a bool: %v", err)
+	}
+	rc.usetls = tls
+
+	tlsverify, err := strconv.ParseBool(tlsskipverify)
+	if err != nil {
+		return nil, fmt.Errorf("tlsskipverify must be a bool: %v", err)
+	}
+	rc.tlsskipverify = tlsverify
+	rc.password = password
+	rc.key = key
+
+	return rc, nil
 }
 
 func (rp *redisPools) getRedisConnectionFromPools() (*redis.Pool, error) {
@@ -34,18 +112,11 @@ func (rp *redisPools) closeAll() {
 	}
 }
 
-func newPools(hostAndPorts []string, db int, password string, usetls, tlsskipverify bool) (*redisPools, error) {
-	pools := make([]*redis.Pool, len(hostAndPorts))
+func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
+	pools := make([]*redis.Pool, len(rc.hosts))
 	i := 0
-	for _, hostAndPort := range hostAndPorts {
-		hostAndPortArray := strings.Split(hostAndPort, ":")
-		if len(hostAndPortArray) != 2 {
-			return nil, fmt.Errorf("hosts must be in the form host:port but is:%s", hostAndPort)
-		}
-		host := hostAndPortArray[0]
-		port := hostAndPortArray[1]
-
-		pool := newPool(host, port, db, password, usetls, tlsskipverify)
+	for _, host := range rc.hosts {
+		pool := newPool(host.hostname, host.port, rc.db, rc.password, rc.usetls, rc.tlsskipverify)
 		pools[i] = pool
 		i++
 	}
@@ -55,13 +126,10 @@ func newPools(hostAndPorts []string, db int, password string, usetls, tlsskipver
 	}, nil
 }
 
-func newPool(host string, port string, db int, password string, usetls, tlsskipverify bool) *redis.Pool {
+func newPool(host string, port int, db int, password string, usetls, tlsskipverify bool) *redis.Pool {
 	var c redis.Conn
 	var err error
-	if port == "" {
-		port = "6379"
-	}
-	server := fmt.Sprintf("%s:%s", host, port)
+	server := fmt.Sprintf("%s:%d", host, port)
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,

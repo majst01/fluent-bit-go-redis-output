@@ -22,13 +22,35 @@ fluent-bit --> stunnel --> redis <-- logstash --> elasticsearch
 ## Usage
 
 ```bash
-docker build --tag --no-cache fluent-bit-go-redis-output .
-docker run -it --rm \
-        --env REDIS_HOSTS="172.17.0.1:6380 172.17.0.1:6381 172.17.0.1:6382 172.17.0.1:6383" \
-        --env REDIS_KEY=logstash \
-        --env REDIS_USETLS=true \
-        --env REDIS_TLSSKIP_VERIFY=true \
-    fluent-bit-go-redis-output
+docker build --no-cache --tag fluent-bit-go-redis-output .
+docker run -it --rm fluent-bit-go-redis-output
+```
+
+### Configuration Options
+
+| Key           | Description                                    | Default        |
+| --------------|------------------------------------------------|----------------|
+| Hosts         | Host(s) of redis servers, whitespace separated ip/host:port | 127.0.0.1:6379 |
+| Password      | Optional redis password for all redis instances | "" |
+| DB            | redis database (integer)  | 0 |
+| UseTLS        | connect to redis with tls | False |
+| TlsSkipVerify | if tls is configured skip tls certificate validation for self signed certificates | True |
+| Key           | the key where to store the entries in redis | "logstash" |
+
+
+Example:
+
+```properties
+[Output]
+    Name redis
+    Match *
+    UseTLS true
+    TLSSkipVerify true
+    # if port is ommited, 6379 is used
+    Hosts 172.17.0.1 172.17.0.1:6380 172.17.0.1:6381 172.17.0.1:6382 172.17.0.1:6383
+#    Password
+    DB 0
+    Key elastic-logstash
 ```
 
 ## Useful links

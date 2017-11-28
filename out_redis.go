@@ -10,8 +10,6 @@ import (
 import (
 	"encoding/json"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -27,50 +25,34 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 //export FLBPluginInit
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
-	// argument parsing from environment variables
-	// REDIS_HOSTS must be in the form "hosta:porta hostb:portb"
-	hosts := os.Getenv("REDIS_HOSTS")
-	if hosts == "" {
-		hosts = "127.0.0.1:6379"
-	}
-	hostAndPorts := strings.Split(hosts, " ")
-
-	password := os.Getenv("REDIS_PASSWORD")
-	key := os.Getenv("REDIS_KEY")
-	if key == "" {
-		key = "logstash"
-	}
-
-	dbValue := os.Getenv("REDIS_DB")
-	db, err := strconv.Atoi(dbValue)
-	if dbValue != "" && err != nil {
-		fmt.Printf("REDIS_DB must be a integer: %v\n", err)
-		os.Exit(1)
-	}
-	usetls, err := strconv.ParseBool(os.Getenv("REDIS_USETLS"))
-	if err != nil {
-		fmt.Printf("REDIS_USETLS must be a bool: %v\n", err)
-		os.Exit(1)
-	}
-	tlsskipverify, err := strconv.ParseBool(os.Getenv("REDIS_TLSSKIP_VERIFY"))
-	if err != nil {
-		fmt.Printf("REDIS_TLSSKIP_VERIFY must be a bool: %v\n", err)
-		os.Exit(1)
-	}
+	hosts := output.FLBPluginConfigKey(ctx, "Hosts")
+	password := output.FLBPluginConfigKey(ctx, "Password")
+	key := output.FLBPluginConfigKey(ctx, "Key")
+	db := output.FLBPluginConfigKey(ctx, "DB")
+	usetls := output.FLBPluginConfigKey(ctx, "UseTLS")
+	tlsskipverify := output.FLBPluginConfigKey(ctx, "TLSSkipVerify")
 
 	// create a pool of redis connection pools
-	redisPools, err := newPools(hostAndPorts, db, password, usetls, tlsskipverify)
+	config, err := getRedisConfig(hosts, password, db, usetls, tlsskipverify, key)
+	if err != nil {
+		fmt.Printf("configuration errors: %v\n", err)
+		// FIXME use fluent-bit method to err in init
+		output.FLBPluginUnregister(ctx)
+		os.Exit(1)
+	}
+	redisPools, err := newPoolsFromConfig(config)
 	if err != nil {
 		fmt.Printf("cannot create a pool of redis connections: %v\n", err)
+		output.FLBPluginUnregister(ctx)
 		os.Exit(1)
 	}
 
 	rc = &redisClient{
 		pools: redisPools,
-		key:   key,
+		key:   config.key,
 	}
 
-	fmt.Printf("[out-redis] redis connection to: %s db: %d usetls:%t tlsskipverify:%t with key:%s\n", hostAndPorts, db, usetls, tlsskipverify, key)
+	fmt.Printf("[out-redis] redis connection to: %s\n", config)
 	return output.FLB_OK
 }
 
@@ -109,7 +91,6 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			default:
 				m[k.(string)] = v
 			}
-
 		}
 		js, err := json.Marshal(m)
 		if err != nil {
