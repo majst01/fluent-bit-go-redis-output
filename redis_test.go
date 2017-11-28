@@ -3,11 +3,11 @@ package main
 import (
 	"testing"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRedisConfig(t *testing.T) {
-
 	// test for defaults
 	c, err := getRedisConfig("", "", "", "", "", "")
 	if err != nil {
@@ -21,6 +21,7 @@ func TestGetRedisConfig(t *testing.T) {
 	assert.Equal(t, 1, len(c.hosts), "it is expected to have one host by default")
 	assert.Equal(t, "127.0.0.1", c.hosts[0].hostname, "it is expected to have 127.0.0.1 as host by default")
 	assert.Equal(t, 6379, c.hosts[0].port, "it is expected to have 6379 as port by default")
+	assert.Equal(t, "hosts:[{127.0.0.1 6379}] db:0 usetls:false tlsskipverify:true key:logstash", c.String())
 
 	// valid configuration parameter passed
 	c, err = getRedisConfig("", "geheim", "1", "true", "false", "elastic")
@@ -62,6 +63,7 @@ func TestGetRedisConfig(t *testing.T) {
 
 	assert.Equal(t, "1.2.3.5", c.hosts[1].hostname, "it is expected to have 1.2.3.5")
 	assert.Equal(t, 6379, c.hosts[1].port, "it is expected to have 6379")
+	assert.Equal(t, "hosts:[{1.2.3.4 42} {1.2.3.5 6379}] db:0 usetls:false tlsskipverify:true key:logstash", c.String())
 
 	// invalid configurations
 	c, err = getRedisConfig("", "", "A", "", "", "")
@@ -88,5 +90,34 @@ func TestGetRedisConfig(t *testing.T) {
 	if err != nil {
 		assert.Equal(t, "hosts must be in the form host:port but is:ahost:42:43", err.Error())
 	}
+
+}
+
+func TestGetRedisConnectionFromPools(t *testing.T) {
+	pools := []*redis.Pool{}
+	rp := &redisPools{
+		pools: pools,
+	}
+
+	p, err := rp.getRedisPoolFromPools()
+	if err != nil {
+		assert.Equal(t, "pool is empty", err.Error())
+	}
+
+	pool := newPool("1.2.3.5", 6379, 0, "", false, false)
+	rp.pools = append(rp.pools, pool)
+	p, err = rp.getRedisPoolFromPools()
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
+	assert.NotNil(t, p, "pool is not to be expected nil")
+
+	pool = newPool("1.2.3.4", 42, 0, "", false, false)
+	rp.pools = append(rp.pools, pool)
+	p1, _ := rp.getRedisPoolFromPools()
+	p2, _ := rp.getRedisPoolFromPools()
+
+	assert.NotNil(t, p1, "pool is not to be expected nil")
+	assert.NotNil(t, p2, "pool is not to be expected nil")
 
 }

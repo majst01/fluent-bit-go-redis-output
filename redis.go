@@ -96,8 +96,11 @@ func getRedisConfig(hosts, password, db, usetls, tlsskipverify, key string) (*re
 	return rc, nil
 }
 
-func (rp *redisPools) getRedisConnectionFromPools() (*redis.Pool, error) {
+func (rp *redisPools) getRedisPoolFromPools() (*redis.Pool, error) {
 	// FIXME check for equally used active connections, and if Pool is active and healthy
+	if len(rp.pools) == 0 {
+		return nil, fmt.Errorf("pool is empty")
+	}
 	next := rand.Intn(len(rp.pools))
 	pool := rp.pools[next]
 	if pool == nil {
@@ -162,7 +165,7 @@ func newPool(host string, port int, db int, password string, usetls, tlsskipveri
 }
 
 func (r *redisClient) write(value []byte) error {
-	pool, err := r.pools.getRedisConnectionFromPools()
+	pool, err := r.pools.getRedisPoolFromPools()
 	if err != nil {
 		return err
 	}
