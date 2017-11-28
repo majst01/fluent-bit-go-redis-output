@@ -123,7 +123,6 @@ func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
 		pools[i] = pool
 		i++
 	}
-	fmt.Printf("pools size: %d.\n", len(pools))
 	return &redisPools{
 		pools: pools,
 	}, nil
