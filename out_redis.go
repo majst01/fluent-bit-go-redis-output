@@ -62,7 +62,6 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	var ret int
 	var ts interface{}
 	var record map[interface{}]interface{}
-	var m map[string]interface{}
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
@@ -78,28 +77,14 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		// Print record keys and values
 		// convert timestamp to RFC3339Nano which is logstash format
 		timestamp := ts.(output.FLBTime)
-		const timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
-		t, _ := time.Parse(timeFormat, timestamp.String())
-		m = make(map[string]interface{})
-		m["@timestamp"] = t.UTC().Format(time.RFC3339Nano)
-		m["@tag"] = C.GoString(tag)
-		for k, v := range record {
-			switch t := v.(type) {
-			case []byte:
-				// prevent encoding to base64
-				m[k.(string)] = string(t)
-			default:
-				m[k.(string)] = v
-			}
-		}
-		js, err := json.Marshal(m)
+		js, err := createJSON(timestamp.String(), C.GoString(tag), record)
 		if err != nil {
-			fmt.Printf("error creating message for REDIS: %s\n", err)
+			fmt.Printf("%v\n", err)
 			return output.FLB_RETRY
 		}
 		err = rc.write(js)
 		if err != nil {
-			fmt.Printf("error %v\n", err)
+			fmt.Printf("%v\n", err)
 			return output.FLB_RETRY
 		}
 	}
@@ -110,6 +95,29 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	// output.FLB_ERROR = unrecoverable error, do not try this again.
 	// output.FLB_RETRY = retry to flush later.
 	return output.FLB_OK
+}
+
+func createJSON(timestamp string, tag string, record map[interface{}]interface{}) ([]byte, error) {
+	// convert timestamp to RFC3339Nano which is logstash format
+	const timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
+	t, _ := time.Parse(timeFormat, timestamp)
+	m := make(map[string]interface{})
+	m["@timestamp"] = t.UTC().Format(time.RFC3339Nano)
+	m["@tag"] = tag
+	for k, v := range record {
+		switch t := v.(type) {
+		case []byte:
+			// prevent encoding to base64
+			m[k.(string)] = string(t)
+		default:
+			m[k.(string)] = v
+		}
+	}
+	js, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("error creating message for REDIS: %v", err)
+	}
+	return js, nil
 }
 
 //export FLBPluginExit
