@@ -5,6 +5,7 @@ go:
   - 1.9
 
 script:
+  - dep ensure
   - make
 
 after_success:
