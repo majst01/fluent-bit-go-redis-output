@@ -1,5 +1,7 @@
 # fluent-bit redis output plugin
 
+[![Build Status](https://travis-ci.org/majst01/fluent-bit-go-redis-output.svg?branch=master)](hhttps://travis-ci.org/majst01/fluent-bit-go-redis-output)
+
 This plugin is used to have redis output from fluent-bit. You can use fluent-bit redis instead of logstash in a configuration
 where you have a redis and optional stunnel in front of your elasticsearch infrastructure. 
 
