@@ -91,6 +91,16 @@ func TestGetRedisConfig(t *testing.T) {
 		assert.Equal(t, "hosts must be in the form host:port but is:ahost:42:43", err.Error())
 	}
 
+	c, err = getRedisConfig("ahost:-1", "", "", "", "", "")
+	if err != nil {
+		assert.Equal(t, "port must between 0-65535 not:-1", err.Error())
+	}
+
+	c, err = getRedisConfig("ahost:65536", "", "", "", "", "")
+	if err != nil {
+		assert.Equal(t, "port must between 0-65535 not:65536", err.Error())
+	}
+
 }
 
 func TestGetRedisConnectionFromPools(t *testing.T) {

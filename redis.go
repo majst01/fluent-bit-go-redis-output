@@ -64,6 +64,9 @@ func getRedisConfig(hosts, password, db, usetls, tlsskipverify, key string) (*re
 			if err != nil {
 				return nil, fmt.Errorf("port must be numeric:%v", err)
 			}
+			if port < 0 || port > 65535 {
+				return nil, fmt.Errorf("port must between 0-65535 not:%d", port)
+			}
 			rh.hostname = hostAndPortArray[0]
 			rh.port = port
 		} else {
