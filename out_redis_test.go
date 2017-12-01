@@ -27,3 +27,12 @@ func TestCreateJSON(t *testing.T) {
 	assert.Equal(t, result["key"], "value")
 	assert.Equal(t, result["five"], float64(5))
 }
+
+func BenchmarkCreateJSON(b *testing.B) {
+	record := make(map[interface{}]interface{})
+	record["key"] = "value"
+	record["five"] = 5
+	for i := 0; i < b.N; i++ {
+		createJSON("2006-01-02 15:04:05.999999999 -0700 MST", "atag", record)
+	}
+}
