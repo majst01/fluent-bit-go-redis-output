@@ -6,15 +6,15 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
-)
-import (
-	"encoding/json"
+	"github.com/json-iterator/go"
+
 	"os"
 	"time"
 )
 
 var (
-	rc *redisClient
+	rc   *redisClient
+	json = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 //export FLBPluginRegister

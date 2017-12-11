@@ -20,6 +20,12 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "github.com/json-iterator/go"
+  packages = ["."]
+  revision = "f7279a603edee96fe7764d3de9c6ff8cf9970994"
+  version = "1.0.4"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -40,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "934635ee7ed81a47cc048c794d88a70bc5086019aeb3c32781f89a8f480b10be"
+  inputs-digest = "96328c18f42291595816d2a59ccb41733f5a4fa9754a3abaee26060024464756"
   solver-name = "gps-cdcl"
   solver-version = 1
