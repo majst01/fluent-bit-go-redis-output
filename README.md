@@ -1,6 +1,6 @@
 # fluent-bit redis output plugin
 
-[![Build Status](https://travis-ci.org/majst01/fluent-bit-go-redis-output.svg?branch=master)](hhttps://travis-ci.org/majst01/fluent-bit-go-redis-output)
+[![Build Status](https://travis-ci.org/majst01/fluent-bit-go-redis-output.svg?branch=master)](https://travis-ci.org/majst01/fluent-bit-go-redis-output)
 [![codecov](https://codecov.io/gh/majst01/fluent-bit-go-redis-output/branch/master/graph/badge.svg)](https://codecov.io/gh/majst01/fluent-bit-go-redis-output)
 [![Go Report Card](https://goreportcard.com/badge/majst01/fluent-bit-go-redis-output)](https://goreportcard.com/report/github.com/majst01/fluent-bit-go-redis-output)
 
