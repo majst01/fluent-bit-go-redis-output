@@ -15,6 +15,9 @@ import (
 var (
 	rc   *redisClient
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
+	// both variables are set in Makefile
+	revision  string
+	builddate string
 )
 
 //export FLBPluginRegister
@@ -51,8 +54,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		pools: redisPools,
 		key:   config.key,
 	}
-
-	fmt.Printf("[out-redis] redis connection to: %s\n", config)
+	fmt.Printf("[out-redis] build:%s version:%s redis connection to: %s\n", builddate, revision, config)
 	return output.FLB_OK
 }
 

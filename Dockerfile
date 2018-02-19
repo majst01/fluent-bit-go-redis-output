@@ -2,7 +2,7 @@ FROM golang:1.10 AS builder
 
 WORKDIR /go/src/github.com/majst01/fluent-bit-go-redis-output/
 
-COPY Makefile Gopkg.* *.go /go/src/github.com/majst01/fluent-bit-go-redis-output/
+COPY .git Makefile Gopkg.* *.go /go/src/github.com/majst01/fluent-bit-go-redis-output/
 RUN go get -u github.com/golang/dep/cmd/dep \
  && make dep all
 
