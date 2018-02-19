@@ -1,4 +1,4 @@
-FROM golang:1.9 AS builder
+FROM golang:1.10 AS builder
 
 WORKDIR /go/src/github.com/majst01/fluent-bit-go-redis-output/
 
