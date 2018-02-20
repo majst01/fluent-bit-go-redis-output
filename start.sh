@@ -3,4 +3,4 @@
 set -e
 
 /fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.conf \
-                           -e /fluent-bit/bin/out_redis.so
+                           -e /fluent-bit/bin/out_redis.so "$@"
