@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/garyburd/redigo/redis"
@@ -129,5 +130,50 @@ func TestGetRedisConnectionFromPools(t *testing.T) {
 
 	assert.NotNil(t, p1, "pool is not to be expected nil")
 	assert.NotNil(t, p2, "pool is not to be expected nil")
+}
 
+type testConnection struct {
+	invokes [][]byte
+	flushed bool
+	fail    string
+}
+
+func (r *testConnection) Send(cmd string, args ...interface{}) error {
+	data := args[1].([]byte)
+	if string(data) == r.fail {
+		return fmt.Errorf("expected fail %q is encountered", r.fail)
+	}
+	r.invokes = append(r.invokes, data)
+	return nil
+}
+
+func (r *testConnection) Flush() error {
+	r.flushed = true
+	return nil
+}
+
+func TestRedisSendMessage(t *testing.T) {
+	rc := &redisClient{}
+	values := []*logmessage{
+		&logmessage{data: []byte("test1")},
+		&logmessage{data: []byte("test2")},
+	}
+	conn := &testConnection{}
+	err := rc.sendImpl(conn, values)
+	assert.NoError(t, err, "send should be ok")
+	assert.Equal(t, len(values), len(conn.invokes), "every messages should be sended")
+	assert.True(t, conn.flushed, "data should be flushed")
+}
+
+func TestRedisSendFailureMessage(t *testing.T) {
+	rc := &redisClient{}
+	values := []*logmessage{
+		&logmessage{data: []byte("test1")},
+		&logmessage{data: []byte("failure")},
+		&logmessage{data: []byte("test2")},
+	}
+	conn := &testConnection{fail: "failure"}
+	err := rc.sendImpl(conn, values)
+	assert.Error(t, err, "send should not be ok")
+	assert.False(t, conn.flushed, "data should not be flushed")
 }

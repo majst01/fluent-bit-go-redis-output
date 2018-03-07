@@ -31,6 +31,25 @@ type redisPools struct {
 	pools []*redis.Pool
 }
 
+// An asyncConnection allows us to write unit testw without redis.
+type asyncConnection interface {
+	Send(string, ...interface{}) error
+	Flush() error
+}
+
+// A redisConn implements an async connection with redis.
+type redisConn struct {
+	conn redis.Conn
+}
+
+func (r *redisConn) Send(cmd string, args ...interface{}) error {
+	return r.conn.Send(cmd, args...)
+}
+
+func (r *redisConn) Flush() error {
+	return r.conn.Flush()
+}
+
 func (rc *redisConfig) String() string {
 	return fmt.Sprintf("hosts:%v db:%d usetls:%t tlsskipverify:%t key:%s", rc.hosts, rc.db, rc.usetls, rc.tlsskipverify, rc.key)
 }
@@ -173,8 +192,13 @@ func (r *redisClient) send(values []*logmessage) error {
 	}
 	conn := pool.Get()
 	defer conn.Close()
+
+	return r.sendImpl(&redisConn{conn}, values)
+}
+
+func (r *redisClient) sendImpl(rd asyncConnection, values []*logmessage) error {
 	for _, v := range values {
-		err = conn.Send("RPUSH", r.key, v.data)
+		err := rd.Send("RPUSH", r.key, v.data)
 		if err != nil {
 			v := string(v.data)
 			if len(v) > 15 {
@@ -183,5 +207,5 @@ func (r *redisClient) send(values []*logmessage) error {
 			return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
 		}
 	}
-	return conn.Flush()
+	return rd.Flush()
 }
