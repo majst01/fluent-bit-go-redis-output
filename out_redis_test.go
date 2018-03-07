@@ -17,7 +17,7 @@ func TestCreateJSON(t *testing.T) {
 	}
 	assert.NotNil(t, js, "json must not be nil")
 	result := make(map[string]interface{})
-	err = json.Unmarshal(js, &result)
+	err = json.Unmarshal(js.data, &result)
 	if err != nil {
 		assert.Fail(t, "it is not expected that unmarshal of json fails:%v", err)
 	}

@@ -166,21 +166,22 @@ func newPool(host string, port int, db int, password string, usetls, tlsskipveri
 	}
 }
 
-func (r *redisClient) write(value []byte) error {
+func (r *redisClient) send(values []*logmessage) error {
 	pool, err := r.pools.getRedisPoolFromPools()
 	if err != nil {
 		return err
 	}
 	conn := pool.Get()
 	defer conn.Close()
-	_, err = conn.Do("RPUSH", r.key, value)
-	if err != nil {
-		v := string(value)
-		if len(v) > 15 {
-			v = v[0:12] + "..."
+	for _, v := range values {
+		err = conn.Send("RPUSH", r.key, v.data)
+		if err != nil {
+			v := string(v.data)
+			if len(v) > 15 {
+				v = v[0:12] + "..."
+			}
+			return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
 		}
-		return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
 	}
-	// fmt.Printf("done with RPUSH %s %s\n", r.key, value)
-	return err
+	return conn.Flush()
 }

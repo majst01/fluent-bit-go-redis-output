@@ -29,6 +29,10 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 	return output.FLBPluginRegister(ctx, "redis", "Redis Output Plugin.")
 }
 
+type logmessage struct {
+	data []byte
+}
+
 //export FLBPluginInit
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
@@ -73,6 +77,9 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	dec := output.NewDecoder(data, int(length))
 
 	// Iterate Records
+
+	var logs []*logmessage
+
 	for {
 		// Extract Record
 		ret, ts, record = output.GetRecord(dec)
@@ -96,13 +103,18 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		js, err := createJSON(timeStamp, C.GoString(tag), record)
 		if err != nil {
 			fmt.Printf("%v\n", err)
-			return output.FLB_RETRY
+			// DO NOT RETURN HERE becase one message has an error when json is
+			// generated, but a retry would fetch ALL messages again. instead an
+			// error should be printed to console
+			continue
 		}
-		err = rc.write(js)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return output.FLB_RETRY
-		}
+		logs = append(logs, js)
+	}
+
+	err := rc.send(logs)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return output.FLB_RETRY
 	}
 
 	// Return options:
@@ -113,7 +125,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	return output.FLB_OK
 }
 
-func createJSON(timestamp string, tag string, record map[interface{}]interface{}) ([]byte, error) {
+func createJSON(timestamp string, tag string, record map[interface{}]interface{}) (*logmessage, error) {
 	// convert timestamp to RFC3339Nano which is logstash format
 	t, _ := time.Parse(timeFormat, timestamp)
 	m := make(map[string]interface{})
@@ -132,7 +144,7 @@ func createJSON(timestamp string, tag string, record map[interface{}]interface{}
 	if err != nil {
 		return nil, fmt.Errorf("error creating message for REDIS: %v", err)
 	}
-	return js, nil
+	return &logmessage{data: js}, nil
 }
 
 //export FLBPluginExit
