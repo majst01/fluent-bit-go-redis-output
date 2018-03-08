@@ -173,6 +173,9 @@ func newPool(host string, port int, db int, password string, usetls, tlsskipveri
 			return c, err
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			if time.Since(t) < time.Minute {
+				return nil
+			}
 			_, err := c.Do("PING")
 			return err
 		},
