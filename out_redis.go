@@ -142,6 +142,8 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		return output.FLB_RETRY
 	}
 
+	fmt.Printf("pushed %d logs\n", len(logs))
+
 	// Return options:
 	//
 	// output.FLB_OK    = data have been processed.
