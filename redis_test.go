@@ -110,14 +110,14 @@ func TestGetRedisConnectionFromPools(t *testing.T) {
 		pools: pools,
 	}
 
-	p, err := rp.getRedisPoolFromPools()
+	_, err := rp.getRedisPoolFromPools()
 	if err != nil {
 		assert.Equal(t, "pool is empty", err.Error())
 	}
 
 	pool := newPool("1.2.3.5", 6379, 0, "", false, false)
 	rp.pools = append(rp.pools, pool)
-	p, err = rp.getRedisPoolFromPools()
+	p, err := rp.getRedisPoolFromPools()
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
