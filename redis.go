@@ -137,7 +137,7 @@ func (rp *redisPools) closeAll() {
 	}
 }
 
-func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
+func newPoolsFromConfig(rc *redisConfig) *redisPools {
 	pools := make([]*redis.Pool, len(rc.hosts))
 	i := 0
 	for _, host := range rc.hosts {
@@ -147,7 +147,7 @@ func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
 	}
 	return &redisPools{
 		pools: pools,
-	}, nil
+	}
 }
 
 func newPool(host string, port int, db int, password string, usetls, tlsskipverify bool) *redis.Pool {

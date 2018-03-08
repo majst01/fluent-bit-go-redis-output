@@ -84,16 +84,8 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		plugin.Exit(1)
 		return output.FLB_ERROR
 	}
-	redisPools, err := newPoolsFromConfig(config)
-	if err != nil {
-		fmt.Printf("cannot create a pool of redis connections: %v\n", err)
-		plugin.Unregister(ctx)
-		plugin.Exit(1)
-		return output.FLB_ERROR
-	}
-
 	rc = &redisClient{
-		pools: redisPools,
+		pools: newPoolsFromConfig(config),
 		key:   config.key,
 	}
 	fmt.Printf("[out-redis] build:%s version:%s redis connection to: %s\n", builddate, revision, config)
