@@ -45,9 +45,17 @@ func BenchmarkCreateJSON(b *testing.B) {
 	}
 }
 
+type testrecord struct {
+	rc   int
+	ts   interface{}
+	data map[interface{}]interface{}
+}
 type testFluentPlugin struct {
-	hosts string
-	db    string
+	hosts       string
+	db          string
+	records     []testrecord
+	position    int
+	logmessages []*logmessage
 }
 
 func (p *testFluentPlugin) Environment(ctx unsafe.Pointer, key string) string {
@@ -71,9 +79,20 @@ func (p *testFluentPlugin) Environment(ctx unsafe.Pointer, key string) string {
 func (p *testFluentPlugin) Unregister(ctx unsafe.Pointer)                                 {}
 func (p *testFluentPlugin) NewDecoder(data unsafe.Pointer, length int) *output.FLBDecoder { return nil }
 func (p *testFluentPlugin) Exit(code int)                                                 {}
-func (p *testFluentPlugin) Send(values []*logmessage) error                               { return nil }
+func (p *testFluentPlugin) Send(values []*logmessage) error {
+	p.logmessages = append(p.logmessages, values...)
+	return nil
+}
 func (p *testFluentPlugin) GetRecord(dec *output.FLBDecoder) (int, interface{}, map[interface{}]interface{}) {
-	return 0, nil, nil
+	if p.position < len(p.records) {
+		r := p.records[p.position]
+		p.position++
+		return r.rc, r.ts, r.data
+	}
+	return -1, nil, nil
+}
+func (p *testFluentPlugin) addrecord(rc int, ts interface{}, data map[interface{}]interface{}) {
+	p.records = append(p.records, testrecord{rc: rc, ts: ts, data: data})
 }
 
 func TestPluginInitialization(t *testing.T) {
@@ -87,4 +106,27 @@ func TestPluginInitializationFailure(t *testing.T) {
 	plugin = &testFluentPlugin{hosts: "hosta hostb", db: "a"}
 	res := FLBPluginInit(nil)
 	assert.Equal(t, output.FLB_ERROR, res)
+}
+
+func TestPluginFlusher(t *testing.T) {
+	testplugin := &testFluentPlugin{hosts: "hosta hostb", db: "0"}
+	ts := time.Date(2018, time.February, 10, 10, 11, 12, 0, time.UTC)
+	testrecords := map[interface{}]interface{}{
+		"mykey": "myvalue",
+	}
+	testplugin.addrecord(0, output.FLBTime{Time: ts}, testrecords)
+	testplugin.addrecord(0, uint64(ts.Unix()), testrecords)
+	testplugin.addrecord(0, 0, testrecords)
+	plugin = testplugin
+	res := FLBPluginFlush(nil, 0, nil)
+	assert.Equal(t, output.FLB_OK, res)
+	assert.Len(t, testplugin.logmessages, len(testplugin.records))
+	var parsed map[string]interface{}
+	json.Unmarshal(testplugin.logmessages[0].data, &parsed)
+	assert.Equal(t, testrecords["mykey"], parsed["mykey"])
+	assert.Equal(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
+	json.Unmarshal(testplugin.logmessages[1].data, &parsed)
+	assert.Equal(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
+	json.Unmarshal(testplugin.logmessages[2].data, &parsed)
+	assert.NotEqual(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
 }
