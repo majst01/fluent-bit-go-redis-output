@@ -18,6 +18,7 @@ var (
 	// both variables are set in Makefile
 	revision  string
 	builddate string
+	plugin    Plugin = &fluentPlugin{}
 )
 
 //export FLBPluginRegister
@@ -29,29 +30,66 @@ type logmessage struct {
 	data []byte
 }
 
+type Plugin interface {
+	Environment(ctx unsafe.Pointer, key string) string
+	Unregister(ctx unsafe.Pointer)
+	GetRecord(dec *output.FLBDecoder) (ret int, ts interface{}, rec map[interface{}]interface{})
+	NewDecoder(data unsafe.Pointer, length int) *output.FLBDecoder
+	Send(values []*logmessage) error
+	Exit(code int)
+}
+
+type fluentPlugin struct{}
+
+func (p *fluentPlugin) Environment(ctx unsafe.Pointer, key string) string {
+	return output.FLBPluginConfigKey(ctx, key)
+}
+
+func (p *fluentPlugin) Unregister(ctx unsafe.Pointer) {
+	output.FLBPluginUnregister(ctx)
+}
+
+func (p *fluentPlugin) GetRecord(dec *output.FLBDecoder) (int, interface{}, map[interface{}]interface{}) {
+	return output.GetRecord(dec)
+}
+
+func (p *fluentPlugin) NewDecoder(data unsafe.Pointer, length int) *output.FLBDecoder {
+	return output.NewDecoder(data, int(length))
+}
+
+func (p *fluentPlugin) Exit(code int) {
+	os.Exit(code)
+}
+
+func (p *fluentPlugin) Send(values []*logmessage) error {
+	return rc.send(values)
+}
+
 //export FLBPluginInit
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
-	hosts := output.FLBPluginConfigKey(ctx, "Hosts")
-	password := output.FLBPluginConfigKey(ctx, "Password")
-	key := output.FLBPluginConfigKey(ctx, "Key")
-	db := output.FLBPluginConfigKey(ctx, "DB")
-	usetls := output.FLBPluginConfigKey(ctx, "UseTLS")
-	tlsskipverify := output.FLBPluginConfigKey(ctx, "TLSSkipVerify")
+	hosts := plugin.Environment(ctx, "Hosts")
+	password := plugin.Environment(ctx, "Password")
+	key := plugin.Environment(ctx, "Key")
+	db := plugin.Environment(ctx, "DB")
+	usetls := plugin.Environment(ctx, "UseTLS")
+	tlsskipverify := plugin.Environment(ctx, "TLSSkipVerify")
 
 	// create a pool of redis connection pools
 	config, err := getRedisConfig(hosts, password, db, usetls, tlsskipverify, key)
 	if err != nil {
 		fmt.Printf("configuration errors: %v\n", err)
 		// FIXME use fluent-bit method to err in init
-		output.FLBPluginUnregister(ctx)
-		os.Exit(1)
+		plugin.Unregister(ctx)
+		plugin.Exit(1)
+		return output.FLB_ERROR
 	}
 	redisPools, err := newPoolsFromConfig(config)
 	if err != nil {
 		fmt.Printf("cannot create a pool of redis connections: %v\n", err)
-		output.FLBPluginUnregister(ctx)
-		os.Exit(1)
+		plugin.Unregister(ctx)
+		plugin.Exit(1)
+		return output.FLB_ERROR
 	}
 
 	rc = &redisClient{
@@ -70,7 +108,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	var record map[interface{}]interface{}
 
 	// Create Fluent Bit decoder
-	dec := output.NewDecoder(data, int(length))
+	dec := plugin.NewDecoder(data, int(length))
 
 	// Iterate Records
 
@@ -78,7 +116,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 	for {
 		// Extract Record
-		ret, ts, record = output.GetRecord(dec)
+		ret, ts, record = plugin.GetRecord(dec)
 		if ret != 0 {
 			break
 		}
@@ -106,7 +144,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		logs = append(logs, js)
 	}
 
-	err := rc.send(logs)
+	err := plugin.Send(logs)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		return output.FLB_RETRY

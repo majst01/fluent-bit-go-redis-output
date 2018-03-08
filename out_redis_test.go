@@ -3,7 +3,9 @@ package main
 import (
 	"testing"
 	"time"
+	"unsafe"
 
+	"github.com/fluent/fluent-bit-go/output"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,4 +43,48 @@ func BenchmarkCreateJSON(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		createJSON(ts, "atag", record)
 	}
+}
+
+type testFluentPlugin struct {
+	hosts string
+	db    string
+}
+
+func (p *testFluentPlugin) Environment(ctx unsafe.Pointer, key string) string {
+	switch key {
+	case "Hosts":
+		return p.hosts
+	case "Password":
+		return "mypasswd"
+	case "Key":
+		return "testkey"
+	case "DB":
+		return p.db
+	case "UseTLS":
+		return "false"
+	case "TLSSkipVerify":
+		return "false"
+	}
+	return "unknown-" + key
+}
+
+func (p *testFluentPlugin) Unregister(ctx unsafe.Pointer)                                 {}
+func (p *testFluentPlugin) NewDecoder(data unsafe.Pointer, length int) *output.FLBDecoder { return nil }
+func (p *testFluentPlugin) Exit(code int)                                                 {}
+func (p *testFluentPlugin) Send(values []*logmessage) error                               { return nil }
+func (p *testFluentPlugin) GetRecord(dec *output.FLBDecoder) (int, interface{}, map[interface{}]interface{}) {
+	return 0, nil, nil
+}
+
+func TestPluginInitialization(t *testing.T) {
+	plugin = &testFluentPlugin{hosts: "hosta hostb", db: "0"}
+	res := FLBPluginInit(nil)
+	assert.Equal(t, output.FLB_OK, res)
+	assert.Len(t, rc.pools.pools, 2)
+}
+
+func TestPluginInitializationFailure(t *testing.T) {
+	plugin = &testFluentPlugin{hosts: "hosta hostb", db: "a"}
+	res := FLBPluginInit(nil)
+	assert.Equal(t, output.FLB_ERROR, res)
 }
