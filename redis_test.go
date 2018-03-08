@@ -132,6 +132,15 @@ func TestGetRedisConnectionFromPools(t *testing.T) {
 	assert.NotNil(t, p2, "pool is not to be expected nil")
 }
 
+func TestPoolsFromConfiguration(t *testing.T) {
+	cfg, err := getRedisConfig("ahost:23456 bhost:12345 chost:45678", "", "", "", "", "")
+	assert.NoError(t, err, "configuration should be parseable")
+
+	pools, err := newPoolsFromConfig(cfg)
+	assert.NoError(t, err, "configuration should return pools")
+	assert.Len(t, pools.pools, 3, "there should be three pools")
+}
+
 type testConnection struct {
 	invokes [][]byte
 	flushed bool
