@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-const (
-	timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
-)
-
 var (
 	rc   *redisClient
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -88,16 +84,15 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		}
 
 		// Print record keys and values
-		// convert timestamp to RFC3339Nano which is logstash format
-		var timeStamp string
+		var timeStamp time.Time
 		switch t := ts.(type) {
 		case output.FLBTime:
-			timeStamp = ts.(output.FLBTime).String()
+			timeStamp = ts.(output.FLBTime).Time
 		case uint64:
-			timeStamp = time.Unix(int64(t), 0).Format(timeFormat)
+			timeStamp = time.Unix(int64(t), 0)
 		default:
 			fmt.Print("given time is not in a known format, defaulting to now.\n")
-			timeStamp = time.Now().Format(timeFormat)
+			timeStamp = time.Now()
 		}
 
 		js, err := createJSON(timeStamp, C.GoString(tag), record)
@@ -125,11 +120,10 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	return output.FLB_OK
 }
 
-func createJSON(timestamp string, tag string, record map[interface{}]interface{}) (*logmessage, error) {
-	// convert timestamp to RFC3339Nano which is logstash format
-	t, _ := time.Parse(timeFormat, timestamp)
+func createJSON(timestamp time.Time, tag string, record map[interface{}]interface{}) (*logmessage, error) {
 	m := make(map[string]interface{})
-	m["@timestamp"] = t.UTC().Format(time.RFC3339Nano)
+	// convert timestamp to RFC3339Nano which is logstash format
+	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
 	m["@tag"] = tag
 	for k, v := range record {
 		switch t := v.(type) {
