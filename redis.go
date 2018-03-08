@@ -31,6 +31,25 @@ type redisPools struct {
 	pools []*redis.Pool
 }
 
+// An asyncConnection allows us to write unit testw without redis.
+type asyncConnection interface {
+	Send(string, ...interface{}) error
+	Flush() error
+}
+
+// A redisConn implements an async connection with redis.
+type redisConn struct {
+	conn redis.Conn
+}
+
+func (r *redisConn) Send(cmd string, args ...interface{}) error {
+	return r.conn.Send(cmd, args...)
+}
+
+func (r *redisConn) Flush() error {
+	return r.conn.Flush()
+}
+
 func (rc *redisConfig) String() string {
 	return fmt.Sprintf("hosts:%v db:%d usetls:%t tlsskipverify:%t key:%s", rc.hosts, rc.db, rc.usetls, rc.tlsskipverify, rc.key)
 }
@@ -118,7 +137,7 @@ func (rp *redisPools) closeAll() {
 	}
 }
 
-func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
+func newPoolsFromConfig(rc *redisConfig) *redisPools {
 	pools := make([]*redis.Pool, len(rc.hosts))
 	i := 0
 	for _, host := range rc.hosts {
@@ -128,25 +147,19 @@ func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
 	}
 	return &redisPools{
 		pools: pools,
-	}, nil
+	}
 }
 
 func newPool(host string, port int, db int, password string, usetls, tlsskipverify bool) *redis.Pool {
-	var c redis.Conn
-	var err error
 	server := fmt.Sprintf("%s:%d", host, port)
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			if usetls {
-				c, err = redis.Dial("tcp", server, redis.DialDatabase(db),
-					redis.DialUseTLS(usetls),
-					redis.DialTLSSkipVerify(tlsskipverify),
-				)
-			} else {
-				c, err = redis.Dial("tcp", server, redis.DialDatabase(db))
-			}
+			c, err := redis.Dial("tcp", server, redis.DialDatabase(db),
+				redis.DialUseTLS(usetls),
+				redis.DialTLSSkipVerify(tlsskipverify),
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -169,21 +182,27 @@ func newPool(host string, port int, db int, password string, usetls, tlsskipveri
 	}
 }
 
-func (r *redisClient) write(value []byte) error {
+func (r *redisClient) send(values []*logmessage) error {
 	pool, err := r.pools.getRedisPoolFromPools()
 	if err != nil {
 		return err
 	}
 	conn := pool.Get()
 	defer conn.Close()
-	_, err = conn.Do("RPUSH", r.key, value)
-	if err != nil {
-		v := string(value)
-		if len(v) > 15 {
-			v = v[0:12] + "..."
+
+	return r.sendImpl(&redisConn{conn}, values)
+}
+
+func (r *redisClient) sendImpl(rd asyncConnection, values []*logmessage) error {
+	for _, v := range values {
+		err := rd.Send("RPUSH", r.key, v.data)
+		if err != nil {
+			v := string(v.data)
+			if len(v) > 15 {
+				v = v[0:12] + "..."
+			}
+			return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
 		}
-		return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
 	}
-	// fmt.Printf("done with RPUSH %s %s\n", r.key, value)
-	return err
+	return rd.Flush()
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/garyburd/redigo/redis"
@@ -66,37 +67,37 @@ func TestGetRedisConfig(t *testing.T) {
 	assert.Equal(t, "hosts:[{1.2.3.4 42} {1.2.3.5 6379}] db:0 usetls:false tlsskipverify:true key:logstash", c.String())
 
 	// invalid configurations
-	c, err = getRedisConfig("", "", "A", "", "", "")
+	_, err = getRedisConfig("", "", "A", "", "", "")
 	if err != nil {
 		assert.Equal(t, "db must be a integer: strconv.Atoi: parsing \"A\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("", "", "", "xxx", "", "")
+	_, err = getRedisConfig("", "", "", "xxx", "", "")
 	if err != nil {
 		assert.Equal(t, "usetls must be a bool: strconv.ParseBool: parsing \"xxx\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("", "", "", "", "xxx", "")
+	_, err = getRedisConfig("", "", "", "", "xxx", "")
 	if err != nil {
 		assert.Equal(t, "tlsskipverify must be a bool: strconv.ParseBool: parsing \"xxx\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:aport", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:aport", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must be numeric:strconv.Atoi: parsing \"aport\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:42:43", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:42:43", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "hosts must be in the form host:port but is:ahost:42:43", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:-1", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:-1", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must between 0-65535 not:-1", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:65536", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:65536", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must between 0-65535 not:65536", err.Error())
 	}
@@ -109,14 +110,14 @@ func TestGetRedisConnectionFromPools(t *testing.T) {
 		pools: pools,
 	}
 
-	p, err := rp.getRedisPoolFromPools()
+	_, err := rp.getRedisPoolFromPools()
 	if err != nil {
 		assert.Equal(t, "pool is empty", err.Error())
 	}
 
 	pool := newPool("1.2.3.5", 6379, 0, "", false, false)
 	rp.pools = append(rp.pools, pool)
-	p, err = rp.getRedisPoolFromPools()
+	p, err := rp.getRedisPoolFromPools()
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -129,5 +130,58 @@ func TestGetRedisConnectionFromPools(t *testing.T) {
 
 	assert.NotNil(t, p1, "pool is not to be expected nil")
 	assert.NotNil(t, p2, "pool is not to be expected nil")
+}
 
+func TestPoolsFromConfiguration(t *testing.T) {
+	cfg, err := getRedisConfig("ahost:23456 bhost:12345 chost:45678", "", "", "", "", "")
+	assert.NoError(t, err, "configuration should be parseable")
+
+	pools := newPoolsFromConfig(cfg)
+	assert.Len(t, pools.pools, 3, "there should be three pools")
+}
+
+type testConnection struct {
+	invokes [][]byte
+	flushed bool
+	fail    string
+}
+
+func (r *testConnection) Send(cmd string, args ...interface{}) error {
+	data := args[1].([]byte)
+	if string(data) == r.fail {
+		return fmt.Errorf("expected fail %q is encountered", r.fail)
+	}
+	r.invokes = append(r.invokes, data)
+	return nil
+}
+
+func (r *testConnection) Flush() error {
+	r.flushed = true
+	return nil
+}
+
+func TestRedisSendMessage(t *testing.T) {
+	rc := &redisClient{}
+	values := []*logmessage{
+		&logmessage{data: []byte("test1")},
+		&logmessage{data: []byte("test2")},
+	}
+	conn := &testConnection{}
+	err := rc.sendImpl(conn, values)
+	assert.NoError(t, err, "send should be ok")
+	assert.Equal(t, len(values), len(conn.invokes), "every messages should be sended")
+	assert.True(t, conn.flushed, "data should be flushed")
+}
+
+func TestRedisSendFailureMessage(t *testing.T) {
+	rc := &redisClient{}
+	values := []*logmessage{
+		&logmessage{data: []byte("test1")},
+		&logmessage{data: []byte("failure")},
+		&logmessage{data: []byte("test2")},
+	}
+	conn := &testConnection{fail: "failure"}
+	err := rc.sendImpl(conn, values)
+	assert.Error(t, err, "send should not be ok")
+	assert.False(t, conn.flushed, "data should not be flushed")
 }

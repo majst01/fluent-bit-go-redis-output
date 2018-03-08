@@ -8,8 +8,11 @@ services:
      - 6379:6379
 
   fluent-bit-go-redis:
+    tty: true
     depends_on: 
       - redis
     build:
       context: .
       dockerfile: Dockerfile
+    volumes:
+      - $PWD/test.log:/test.log
