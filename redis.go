@@ -151,21 +151,15 @@ func newPoolsFromConfig(rc *redisConfig) (*redisPools, error) {
 }
 
 func newPool(host string, port int, db int, password string, usetls, tlsskipverify bool) *redis.Pool {
-	var c redis.Conn
-	var err error
 	server := fmt.Sprintf("%s:%d", host, port)
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			if usetls {
-				c, err = redis.Dial("tcp", server, redis.DialDatabase(db),
-					redis.DialUseTLS(usetls),
-					redis.DialTLSSkipVerify(tlsskipverify),
-				)
-			} else {
-				c, err = redis.Dial("tcp", server, redis.DialDatabase(db))
-			}
+			c, err := redis.Dial("tcp", server, redis.DialDatabase(db),
+				redis.DialUseTLS(usetls),
+				redis.DialTLSSkipVerify(tlsskipverify),
+			)
 			if err != nil {
 				return nil, err
 			}
