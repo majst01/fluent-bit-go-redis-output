@@ -67,37 +67,37 @@ func TestGetRedisConfig(t *testing.T) {
 	assert.Equal(t, "hosts:[{1.2.3.4 42} {1.2.3.5 6379}] db:0 usetls:false tlsskipverify:true key:logstash", c.String())
 
 	// invalid configurations
-	c, err = getRedisConfig("", "", "A", "", "", "")
+	_, err = getRedisConfig("", "", "A", "", "", "")
 	if err != nil {
 		assert.Equal(t, "db must be a integer: strconv.Atoi: parsing \"A\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("", "", "", "xxx", "", "")
+	_, err = getRedisConfig("", "", "", "xxx", "", "")
 	if err != nil {
 		assert.Equal(t, "usetls must be a bool: strconv.ParseBool: parsing \"xxx\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("", "", "", "", "xxx", "")
+	_, err = getRedisConfig("", "", "", "", "xxx", "")
 	if err != nil {
 		assert.Equal(t, "tlsskipverify must be a bool: strconv.ParseBool: parsing \"xxx\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:aport", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:aport", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must be numeric:strconv.Atoi: parsing \"aport\": invalid syntax", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:42:43", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:42:43", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "hosts must be in the form host:port but is:ahost:42:43", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:-1", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:-1", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must between 0-65535 not:-1", err.Error())
 	}
 
-	c, err = getRedisConfig("ahost:65536", "", "", "", "", "")
+	_, err = getRedisConfig("ahost:65536", "", "", "", "", "")
 	if err != nil {
 		assert.Equal(t, "port must between 0-65535 not:65536", err.Error())
 	}
