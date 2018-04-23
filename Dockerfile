@@ -6,7 +6,7 @@ COPY .git Makefile Gopkg.* *.go /go/src/github.com/majst01/fluent-bit-go-redis-o
 RUN go get -u github.com/golang/dep/cmd/dep \
  && make dep all
 
-FROM fluent/fluent-bit:0.12.17
+FROM fluent/fluent-bit:0.12.18
 
 COPY --from=builder /go/src/github.com/majst01/fluent-bit-go-redis-output/out_redis.so /fluent-bit/bin/
 COPY *.conf /fluent-bit/etc/
