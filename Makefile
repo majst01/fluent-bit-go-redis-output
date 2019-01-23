@@ -8,6 +8,8 @@ ifeq ($(UNAME_S),Darwin)
 	BUILDDATE := $(shell gdate --rfc-3339=seconds)
 endif
 
+export GO111MODULE := on
+
 all: test
 	go build -ldflags "-X 'main.revision=$(GITVERSION)' -X 'main.builddate=$(BUILDDATE)'" -buildmode=c-shared -o out_redis.so .
 
