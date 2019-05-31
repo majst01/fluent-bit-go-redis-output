@@ -126,7 +126,7 @@ func (rp *redisPools) getRedisPoolFromPools() (*redis.Pool, error) {
 	next := rand.Intn(len(rp.pools))
 	pool := rp.pools[next]
 	if pool == nil {
-		return nil, fmt.Errorf("Pool is nil in Pools")
+		return nil, fmt.Errorf("pool is nil in pools")
 	}
 	return pool, nil
 }
