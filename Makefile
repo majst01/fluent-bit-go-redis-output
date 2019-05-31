@@ -16,8 +16,5 @@ all: test
 test:
 	go test -cover -race -coverprofile=coverage.txt -covermode=atomic
 
-dep:
-	dep ensure
-
 clean:
 	rm -rf *.so *.h *~
