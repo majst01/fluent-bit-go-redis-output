@@ -1,11 +1,11 @@
-FROM golang:1.11 AS builder
+FROM golang:1.12 AS builder
 
 WORKDIR /go/src/github.com/majst01/fluent-bit-go-redis-output/
 
 COPY .git Makefile go.* *.go /go/src/github.com/majst01/fluent-bit-go-redis-output/
 RUN make
 
-FROM fluent/fluent-bit:1.0.3
+FROM fluent/fluent-bit:1.1.2
 
 COPY --from=builder /go/src/github.com/majst01/fluent-bit-go-redis-output/out_redis.so /fluent-bit/bin/
 COPY *.conf /fluent-bit/etc/
