@@ -152,20 +152,28 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	return output.FLB_OK
 }
 
-func createJSON(timestamp time.Time, tag string, record map[interface{}]interface{}) (*logmessage, error) {
+func parseMap(mapInterface map[interface{}]interface{}) map[string]interface{} {
 	m := make(map[string]interface{})
-	// convert timestamp to RFC3339Nano which is logstash format
-	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
-	m["@tag"] = tag
-	for k, v := range record {
+	for k, v := range mapInterface {
 		switch t := v.(type) {
 		case []byte:
 			// prevent encoding to base64
 			m[k.(string)] = string(t)
+		case map[interface{}]interface{}:
+			m[k.(string)] = parseMap(t)
 		default:
 			m[k.(string)] = v
 		}
 	}
+	return m
+}
+
+func createJSON(timestamp time.Time, tag string, record map[interface{}]interface{}) (*logmessage, error) {
+	m := parseMap(record)
+	// convert timestamp to RFC3339Nano which is logstash format
+	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
+	m["@tag"] = tag
+
 	js, err := json.Marshal(m)
 	if err != nil {
 		return nil, fmt.Errorf("error creating message for REDIS: %v", err)

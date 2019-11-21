@@ -13,6 +13,26 @@ const (
 	timeFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
 )
 
+func TestParseMap(t *testing.T) {
+
+	nestedMap := map[interface{}]interface{}{
+		"pod_name":       []byte("test_pod"),
+		"container_name": "test_container",
+		"annotations": map[interface{}]interface{}{
+			"namespace_name":  []byte("test_namespace"),
+			"checksum/config": "2e239b0ee49b0803c617dea3",
+		},
+	}
+	pm := parseMap(nestedMap)
+
+	assert.Equal(t, "test_pod", pm["pod_name"])
+	assert.Equal(t, "test_container", pm["container_name"])
+	assert.Equal(t, "test_namespace",
+		pm["annotations"].(map[string]interface{})["namespace_name"])
+	assert.Equal(t, "2e239b0ee49b0803c617dea3",
+		pm["annotations"].(map[string]interface{})["checksum/config"])
+}
+
 func TestCreateJSON(t *testing.T) {
 	record := make(map[interface{}]interface{})
 	record["key"] = "value"
