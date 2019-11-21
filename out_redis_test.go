@@ -61,7 +61,8 @@ func BenchmarkCreateJSON(b *testing.B) {
 	record["five"] = 5
 	ts, _ := time.Parse(time.RFC3339Nano, "2006-01-02 15:04:05.999999999 -0700 MST")
 	for i := 0; i < b.N; i++ {
-		createJSON(ts, "atag", record)
+		_, err := createJSON(ts, "atag", record)
+		assert.NoError(b, err)
 	}
 }
 
@@ -142,11 +143,14 @@ func TestPluginFlusher(t *testing.T) {
 	assert.Equal(t, output.FLB_OK, res)
 	assert.Len(t, testplugin.logmessages, len(testplugin.records))
 	var parsed map[string]interface{}
-	json.Unmarshal(testplugin.logmessages[0].data, &parsed)
+	err := json.Unmarshal(testplugin.logmessages[0].data, &parsed)
+	assert.NoError(t, err)
 	assert.Equal(t, testrecords["mykey"], parsed["mykey"])
 	assert.Equal(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
-	json.Unmarshal(testplugin.logmessages[1].data, &parsed)
+	err = json.Unmarshal(testplugin.logmessages[1].data, &parsed)
+	assert.NoError(t, err)
 	assert.Equal(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
-	json.Unmarshal(testplugin.logmessages[2].data, &parsed)
+	err = json.Unmarshal(testplugin.logmessages[2].data, &parsed)
+	assert.NoError(t, err)
 	assert.NotEqual(t, ts.Format(time.RFC3339Nano), parsed["@timestamp"])
 }
