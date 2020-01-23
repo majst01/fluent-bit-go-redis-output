@@ -18,3 +18,6 @@ test:
 
 clean:
 	rm -rf *.so *.h *~
+
+dockerimage:
+	docker build -t majst01/fluent-bit-go-redis-output .
