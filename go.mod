@@ -3,8 +3,8 @@ module github.com/majst01/fluent-bit-go-redis-output
 go 1.14
 
 require (
-	github.com/fluent/fluent-bit-go v0.0.0-20200304012558-215d6804159a
-	github.com/gomodule/redigo v0.0.0-20180627144507-2cd21d9966bf
+	github.com/fluent/fluent-bit-go v0.0.0-20200420155746-e125cab17963
+	github.com/gomodule/redigo v1.8.0
 	github.com/json-iterator/go v1.1.9
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
