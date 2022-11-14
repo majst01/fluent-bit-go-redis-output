@@ -6,7 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 
 	"os"
 	"time"
@@ -65,8 +65,9 @@ func (p *fluentPlugin) Send(values []*logmessage) error {
 	return rc.send(values)
 }
 
-//export FLBPluginInit
 // ctx (context) pointer to fluentbit context (state/ c code)
+//
+//export FLBPluginInit
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	hosts := plugin.Environment(ctx, "Hosts")
 	password := plugin.Environment(ctx, "Password")
@@ -92,8 +93,9 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	return output.FLB_OK
 }
 
-//export FLBPluginFlush
 // FLBPluginFlush is called from fluent-bit when data need to be sent. is called from fluent-bit when data need to be sent.
+//
+//export FLBPluginFlush
 func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	var ret int
 	var ts interface{}
@@ -176,7 +178,7 @@ func createJSON(timestamp time.Time, tag string, record map[interface{}]interfac
 
 	js, err := json.Marshal(m)
 	if err != nil {
-		return nil, fmt.Errorf("error creating message for REDIS: %v", err)
+		return nil, fmt.Errorf("error creating message for REDIS: %w", err)
 	}
 	return &logmessage{data: js}, nil
 }

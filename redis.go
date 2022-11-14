@@ -81,7 +81,7 @@ func getRedisConfig(hosts, password, db, usetls, tlsskipverify, key string) (*re
 
 			port, err := strconv.Atoi(hostAndPortArray[1])
 			if err != nil {
-				return nil, fmt.Errorf("port must be numeric:%v", err)
+				return nil, fmt.Errorf("port must be numeric:%w", err)
 			}
 			if port < 0 || port > 65535 {
 				return nil, fmt.Errorf("port must between 0-65535 not:%d", port)
@@ -97,19 +97,19 @@ func getRedisConfig(hosts, password, db, usetls, tlsskipverify, key string) (*re
 
 	dbValue, err := strconv.Atoi(db)
 	if db != "" && err != nil {
-		return nil, fmt.Errorf("db must be a integer: %v", err)
+		return nil, fmt.Errorf("db must be a integer: %w", err)
 	}
 	rc.db = dbValue
 
 	tls, err := strconv.ParseBool(usetls)
 	if err != nil {
-		return nil, fmt.Errorf("usetls must be a bool: %v", err)
+		return nil, fmt.Errorf("usetls must be a bool: %w", err)
 	}
 	rc.usetls = tls
 
 	tlsverify, err := strconv.ParseBool(tlsskipverify)
 	if err != nil {
-		return nil, fmt.Errorf("tlsskipverify must be a bool: %v", err)
+		return nil, fmt.Errorf("tlsskipverify must be a bool: %w", err)
 	}
 	rc.tlsskipverify = tlsverify
 	rc.password = password
@@ -123,7 +123,7 @@ func (rp *redisPools) getRedisPoolFromPools() (*redis.Pool, error) {
 	if len(rp.pools) == 0 {
 		return nil, fmt.Errorf("pool is empty")
 	}
-	next := rand.Intn(len(rp.pools))
+	next := rand.Intn(len(rp.pools)) // nolint:gosec
 	pool := rp.pools[next]
 	if pool == nil {
 		return nil, fmt.Errorf("pool is nil in pools")
@@ -201,7 +201,7 @@ func (r *redisClient) sendImpl(rd asyncConnection, values []*logmessage) error {
 			if len(v) > 15 {
 				v = v[0:12] + "..."
 			}
-			return fmt.Errorf("error setting key %s to %s: %v", r.key, v, err)
+			return fmt.Errorf("error setting key %s to %s: %w", r.key, v, err)
 		}
 	}
 	return rd.Flush()
